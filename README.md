@@ -2,6 +2,7 @@
 
 This is a backport of the standard ImageIO PNG writer available in Java 9, which includes
 [a very important configurability and performance enhancement](https://bugs.openjdk.java.net/browse/JDK-6488522).
+This library can be used on both Java 7 and Java 8.
 
 Prior to Java 9, the ZLIB deflater used internally by PNGImageWriter always used the `BEST_COMPRESSION`
 compression level, which tries to achieve optimal file sizes regardless of the performance penalty. This
