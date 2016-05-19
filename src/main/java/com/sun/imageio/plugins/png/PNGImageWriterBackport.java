@@ -28,15 +28,16 @@ package com.sun.imageio.plugins.png;
 import java.awt.Rectangle;
 import java.awt.image.IndexColorModel;
 import java.awt.image.Raster;
-import java.awt.image.WritableRaster;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
+import java.awt.image.WritableRaster;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
+
 import javax.imageio.IIOException;
 import javax.imageio.IIOImage;
 import javax.imageio.ImageTypeSpecifier;
@@ -47,7 +48,7 @@ import javax.imageio.spi.ImageWriterSpi;
 import javax.imageio.stream.ImageOutputStream;
 import javax.imageio.stream.ImageOutputStreamImpl;
 
-final class CRC {
+final class CRCBackport {
 
     private static final int[] crcTable = new int[256];
     private int crc = 0xffffffff;
@@ -68,7 +69,7 @@ final class CRC {
         }
     }
 
-    CRC() {}
+    CRCBackport() {}
 
     void reset() {
         crc = 0xffffffff;
@@ -92,13 +93,13 @@ final class CRC {
 }
 
 
-final class ChunkStream extends ImageOutputStreamImpl {
+final class ChunkStreamBackport extends ImageOutputStreamImpl {
 
     private final ImageOutputStream stream;
     private final long startPos;
-    private final CRC crc = new CRC();
+    private final CRCBackport crc = new CRCBackport();
 
-    ChunkStream(int type, ImageOutputStream stream) throws IOException {
+    ChunkStreamBackport(int type, ImageOutputStream stream) throws IOException {
         this.stream = stream;
         this.startPos = stream.getStreamPosition();
 
@@ -151,7 +152,7 @@ final class ChunkStream extends ImageOutputStreamImpl {
 
 // Compress output and write as a series of 'IDAT' chunks of
 // fixed length.
-final class IDATOutputStream extends ImageOutputStreamImpl {
+final class IDATOutputStreamBackport extends ImageOutputStreamImpl {
 
     private static final byte[] chunkType = {
         (byte)'I', (byte)'D', (byte)'A', (byte)'T'
@@ -160,7 +161,7 @@ final class IDATOutputStream extends ImageOutputStreamImpl {
     private final ImageOutputStream stream;
     private final int chunkLength;
     private long startPos;
-    private final CRC crc = new CRC();
+    private final CRCBackport crc = new CRCBackport();
 
     private final Deflater def;
     private final byte[] buf = new byte[512];
@@ -169,7 +170,7 @@ final class IDATOutputStream extends ImageOutputStreamImpl {
 
     private int bytesRemaining;
 
-    IDATOutputStream(ImageOutputStream stream, int chunkLength,
+    IDATOutputStreamBackport(ImageOutputStream stream, int chunkLength,
                             int deflaterLevel) throws IOException
     {
         this.stream = stream;
@@ -286,7 +287,7 @@ final class IDATOutputStream extends ImageOutputStreamImpl {
 }
 
 
-final class PNGImageWriteParam extends ImageWriteParam {
+final class PNGImageWriteParamBackport extends ImageWriteParam {
 
     /** Default quality level = 0.5 ie medium compression */
     private static final float DEFAULT_QUALITY = 0.5f;
@@ -299,7 +300,7 @@ final class PNGImageWriteParam extends ImageWriteParam {
         "Low compression"     // 0.75 -> 1.00
     };
 
-    PNGImageWriteParam(Locale locale) {
+    PNGImageWriteParamBackport(Locale locale) {
         super();
         this.canWriteProgressive = true;
         this.locale = locale;
@@ -352,7 +353,7 @@ final class PNGImageWriteParam extends ImageWriteParam {
 
 /**
  */
-public final class PNGImageWriter extends ImageWriter {
+public final class PNGImageWriterBackport extends ImageWriter {
 
     /** Default compression level = 4 ie medium compression */
     private static final int DEFAULT_COMPRESSION_LEVEL = 4;
@@ -400,7 +401,7 @@ public final class PNGImageWriter extends ImageWriter {
     int totalPixels; // Total number of pixels to be written by write_IDAT
     int pixelsDone; // Running count of pixels written by write_IDAT
 
-    public PNGImageWriter(ImageWriterSpi originatingProvider) {
+    public PNGImageWriterBackport(ImageWriterSpi originatingProvider) {
         super(originatingProvider);
     }
 
@@ -419,7 +420,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     @Override
     public ImageWriteParam getDefaultWriteParam() {
-        return new PNGImageWriteParam(getLocale());
+        return new PNGImageWriteParamBackport(getLocale());
     }
 
     @Override
@@ -461,7 +462,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_IHDR() throws IOException {
         // Write IHDR chunk
-        ChunkStream cs = new ChunkStream(PNGImageReader.IHDR_TYPE, stream);
+        ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.IHDR_TYPE, stream);
         cs.writeInt(metadata.IHDR_width);
         cs.writeInt(metadata.IHDR_height);
         cs.writeByte(metadata.IHDR_bitDepth);
@@ -487,7 +488,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_cHRM() throws IOException {
         if (metadata.cHRM_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.cHRM_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.cHRM_TYPE, stream);
             cs.writeInt(metadata.cHRM_whitePointX);
             cs.writeInt(metadata.cHRM_whitePointY);
             cs.writeInt(metadata.cHRM_redX);
@@ -502,7 +503,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_gAMA() throws IOException {
         if (metadata.gAMA_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.gAMA_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.gAMA_TYPE, stream);
             cs.writeInt(metadata.gAMA_gamma);
             cs.finish();
         }
@@ -510,7 +511,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_iCCP() throws IOException {
         if (metadata.iCCP_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.iCCP_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.iCCP_TYPE, stream);
             cs.writeBytes(metadata.iCCP_profileName);
             cs.writeByte(0); // null terminator
 
@@ -522,7 +523,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_sBIT() throws IOException {
         if (metadata.sBIT_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.sBIT_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.sBIT_TYPE, stream);
             int colorType = metadata.IHDR_colorType;
             if (metadata.sBIT_colorType != colorType) {
                 processWarningOccurred(0,
@@ -552,7 +553,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_sRGB() throws IOException {
         if (metadata.sRGB_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.sRGB_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.sRGB_TYPE, stream);
             cs.writeByte(metadata.sRGB_renderingIntent);
             cs.finish();
         }
@@ -570,7 +571,7 @@ public final class PNGImageWriter extends ImageWriter {
                 return;
             }
 
-            ChunkStream cs = new ChunkStream(PNGImageReader.PLTE_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.PLTE_TYPE, stream);
 
             int numEntries = metadata.PLTE_red.length;
             byte[] palette = new byte[numEntries*3];
@@ -588,7 +589,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_hIST() throws IOException, IIOException {
         if (metadata.hIST_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.hIST_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.hIST_TYPE, stream);
 
             if (!metadata.PLTE_present) {
                 throw new IIOException("hIST chunk without PLTE chunk!");
@@ -602,7 +603,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_tRNS() throws IOException, IIOException {
         if (metadata.tRNS_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.tRNS_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.tRNS_TYPE, stream);
             int colorType = metadata.IHDR_colorType;
             int chunkType = metadata.tRNS_colorType;
 
@@ -645,7 +646,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_bKGD() throws IOException {
         if (metadata.bKGD_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.bKGD_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.bKGD_TYPE, stream);
             int colorType = metadata.IHDR_colorType & 0x3;
             int chunkType = metadata.bKGD_colorType;
 
@@ -687,7 +688,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_pHYs() throws IOException {
         if (metadata.pHYs_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.pHYs_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.pHYs_TYPE, stream);
             cs.writeInt(metadata.pHYs_pixelsPerUnitXAxis);
             cs.writeInt(metadata.pHYs_pixelsPerUnitYAxis);
             cs.writeByte(metadata.pHYs_unitSpecifier);
@@ -697,7 +698,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_sPLT() throws IOException {
         if (metadata.sPLT_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.sPLT_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.sPLT_TYPE, stream);
 
             cs.writeBytes(metadata.sPLT_paletteName);
             cs.writeByte(0); // null terminator
@@ -728,7 +729,7 @@ public final class PNGImageWriter extends ImageWriter {
 
     private void write_tIME() throws IOException {
         if (metadata.tIME_present) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.tIME_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.tIME_TYPE, stream);
             cs.writeShort(metadata.tIME_year);
             cs.writeByte(metadata.tIME_month);
             cs.writeByte(metadata.tIME_day);
@@ -744,7 +745,7 @@ public final class PNGImageWriter extends ImageWriter {
         Iterator<String> textIter = metadata.tEXt_text.iterator();
 
         while (keywordIter.hasNext()) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.tEXt_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.tEXt_TYPE, stream);
             String keyword = keywordIter.next();
             cs.writeBytes(keyword);
             cs.writeByte(0);
@@ -773,7 +774,7 @@ public final class PNGImageWriter extends ImageWriter {
         Iterator<String> textIter = metadata.iTXt_text.iterator();
 
         while (keywordIter.hasNext()) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.iTXt_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.iTXt_TYPE, stream);
 
             cs.writeBytes(keywordIter.next());
             cs.writeByte(0);
@@ -806,7 +807,7 @@ public final class PNGImageWriter extends ImageWriter {
         Iterator<String> textIter = metadata.zTXt_text.iterator();
 
         while (keywordIter.hasNext()) {
-            ChunkStream cs = new ChunkStream(PNGImageReader.zTXt_TYPE, stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.zTXt_TYPE, stream);
             String keyword = keywordIter.next();
             cs.writeBytes(keyword);
             cs.writeByte(0);
@@ -826,7 +827,7 @@ public final class PNGImageWriter extends ImageWriter {
 
         while (typeIter.hasNext() && dataIter.hasNext()) {
             String type = typeIter.next();
-            ChunkStream cs = new ChunkStream(chunkType(type), stream);
+            ChunkStreamBackport cs = new ChunkStreamBackport(chunkType(type), stream);
             byte[] data = dataIter.next();
             cs.write(data);
             cs.finish();
@@ -1011,7 +1012,7 @@ public final class PNGImageWriter extends ImageWriter {
     private void write_IDAT(RenderedImage image, int deflaterLevel)
         throws IOException
     {
-        IDATOutputStream ios = new IDATOutputStream(stream, 32768,
+        IDATOutputStreamBackport ios = new IDATOutputStreamBackport(stream, 32768,
                                                     deflaterLevel);
         try {
             if (metadata.IHDR_interlaceMethod == 1) {
@@ -1034,7 +1035,7 @@ public final class PNGImageWriter extends ImageWriter {
     }
 
     private void writeIEND() throws IOException {
-        ChunkStream cs = new ChunkStream(PNGImageReader.IEND_TYPE, stream);
+        ChunkStreamBackport cs = new ChunkStreamBackport(PNGImageReader.IEND_TYPE, stream);
         cs.finish();
     }
 

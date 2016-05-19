@@ -28,17 +28,20 @@ package com.sun.imageio.plugins.png;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
 import java.awt.image.SampleModel;
+import java.util.Iterator;
 import java.util.Locale;
-import javax.imageio.ImageWriter;
+
 import javax.imageio.ImageTypeSpecifier;
-import javax.imageio.metadata.IIOMetadataFormat;
-import javax.imageio.metadata.IIOMetadataFormatImpl;
+import javax.imageio.ImageWriter;
 import javax.imageio.spi.ImageWriterSpi;
+import javax.imageio.spi.ServiceRegistry;
 import javax.imageio.stream.ImageOutputStream;
 
-public class PNGImageWriterSpi extends ImageWriterSpi {
+import com.sun.imageio.plugins.png.PNGMetadata;
 
-    private static final String vendorName = "Oracle Corporation";
+public class PNGImageWriterSpiBackport extends ImageWriterSpi {
+
+    private static final String vendorName = "The Interwebs";
 
     private static final String version = "1.0";
 
@@ -49,13 +52,13 @@ public class PNGImageWriterSpi extends ImageWriterSpi {
     private static final String[] MIMETypes = { "image/png", "image/x-png" };
 
     private static final String writerClassName =
-        "com.sun.imageio.plugins.png.PNGImageWriter";
+        "com.sun.imageio.plugins.png.PNGImageWriterBackport";
 
     private static final String[] readerSpiNames = {
         "com.sun.imageio.plugins.png.PNGImageReaderSpi"
     };
 
-    public PNGImageWriterSpi() {
+    public PNGImageWriterSpiBackport() {
           super(vendorName,
                 version,
                 names,
@@ -74,6 +77,7 @@ public class PNGImageWriterSpi extends ImageWriterSpi {
                 );
     }
 
+    @Override
     public boolean canEncodeImage(ImageTypeSpecifier type) {
         SampleModel sampleModel = type.getSampleModel();
         ColorModel colorModel = type.getColorModel();
@@ -116,11 +120,29 @@ public class PNGImageWriterSpi extends ImageWriterSpi {
         return true;
     }
 
+    @Override
     public String getDescription(Locale locale) {
-        return "Standard PNG image writer";
+        return "JDK9 Backport PNG image writer";
     }
 
+    @Override
     public ImageWriter createWriterInstance(Object extension) {
-        return new PNGImageWriter(this);
+        return new PNGImageWriterBackport(this);
+    }
+
+    @Override
+    public void onRegistration(ServiceRegistry registry, Class< ? > category) {
+        Iterator< ImageWriterSpi > others = registry.getServiceProviders(ImageWriterSpi.class, false);
+        while (others.hasNext()) {
+            ImageWriterSpi other = others.next();
+            if (other != this) {
+                for (String formatName : other.getFormatNames()) {
+                    if ("png".equals(formatName)) {
+                        registry.setOrdering(ImageWriterSpi.class, this, other);
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
