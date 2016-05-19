@@ -1,0 +1,103 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+group = 'net.gredler'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile 'junit:junit:4.12'
+}
+
+sourceCompatibility = 7
+targetCompatibility = 7
+
+// When using JDK8+ as the primary JDK, JDK7 should be installed as a secondary JDK to compile
+// against (to make sure that we're not inadvertently using newer APIs), and the JDK7_HOME
+// environment variable should be set to the home directory of this secondary JDK
+// https://blogs.oracle.com/darcy/entry/bootclasspath_older_source
+tasks.withType(JavaCompile) {
+    doFirst {
+        if (System.env.JDK7_HOME != null) {
+            options.fork = true
+            options.bootClasspath = "$System.env.JDK7_HOME/jre/lib/rt.jar"
+        }
+    }
+}
+
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+javadoc.options.encoding = 'UTF-8'
+
+jar.dependsOn 'check'
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.13'
+}
+
+/*------------------------------------------------------------------------------------------------*/
+/*                         CONFIGURATION FOR UPLOAD TO MAVEN CENTRAL REPO                         */
+/*                                                                                                */
+/* The signing credentials and Sonatype OSSRH credentials must be in the gradle.properties file.  */
+/* Upload to Maven Central with the command "gradlew uploadArchives".                             */
+/* http://central.sonatype.org/pages/gradle.html                                                  */
+/* http://central.sonatype.org/pages/ossrh-guide.html                                             */
+/*                                                                                                */
+/*------------------------------------------------------------------------------------------------*/
+
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories.mavenDeployer {
+        beforeDeployment {
+            MavenDeployment deployment -> signing.signPom(deployment)
+        }
+        repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
+            authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+        pom.project {
+            name 'JDK9 PNG Writer Backport'
+            description 'A backport of the PNG writer performance enhancements implemented in JDK-6488522.'
+            packaging 'jar'
+            url 'https://github.com/gredler/jdk9-png-writer-backport'
+            scm {
+                connection 'scm:git:git://github.com/gredler/jdk9-png-writer-backport.git'
+                url 'https://github.com/gredler/jdk9-png-writer-backport'
+            }
+            licenses {
+                license {
+                    name 'GPL 2 + Classpath Exception'
+                    url 'http://openjdk.java.net/legal/gplv2+ce.html'
+                }
+            }
+            developers {
+                developer {
+                    id 'gredler'
+                    name 'Daniel Gredler'
+                }
+            }
+        }
+    }
+}
